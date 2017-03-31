@@ -65,6 +65,19 @@ function username_exists($username){
     }
 }
 
+/**
+ * @param $email
+ * @param $subject
+ * @param $msg
+ * @param $headers
+ */
+function send_email($email, $subject, $msg, $headers){
+    return mail($email, $subject, $msg, $headers);
+}
+
+
+
+
 
 
 /*********************** Validation functions ***************************/
@@ -74,7 +87,7 @@ function validate_user_registration(){
     $min = 3;
     $max = 20;
 
-    if($_SERVER['REQUEST_METHOD'] == "POST"){
+    if($_SERVER['REQUEST_METHOD'] == "POST") {
         $first_name = clean($_POST['first_name']);
         $last_name = clean($_POST['last_name']);
         $username = clean($_POST['username']);
@@ -82,46 +95,116 @@ function validate_user_registration(){
         $password = clean($_POST['password']);
         $confirm_password = clean($_POST['confirm_password']);
 
-    }
-    if(strlen($first_name)< $min){
-        $errors[] = "Your first name cannot be less than {$min} characters";
+        if (strlen($first_name) < $min) {
+            $errors[] = "Your first name cannot be less than {$min} characters";
 
-    }
-    if(strlen($first_name)> $max){
-        $errors[] = "Your first name cannot be more than {$max} characters";
-    }
-    if(strlen($last_name)< $min){
-        $errors[] = "Your last name cannot be less than {$min} characters";
+        }
+        if (strlen($first_name) > $max) {
+            $errors[] = "Your first name cannot be more than {$max} characters";
+        }
+        if (strlen($last_name) < $min) {
+            $errors[] = "Your last name cannot be less than {$min} characters";
 
-    }
-    if(strlen($last_name)> $max){
-        $errors[] = "Your last name cannot be more than {$max} characters";
-    }
-    if(strlen($username)< $min){
-        $errors[] = "Your username cannot be less than {$min} characters";
+        }
+        if (strlen($last_name) > $max) {
+            $errors[] = "Your last name cannot be more than {$max} characters";
+        }
+        if (strlen($username) < $min) {
+            $errors[] = "Your username cannot be less than {$min} characters";
 
-    }
-    if(strlen($username)> $max){
-        $errors[] = "Your username cannot be more than {$max} characters";
-    }
+        }
+        if (strlen($username) > $max) {
+            $errors[] = "Your username cannot be more than {$max} characters";
+        }
 
-    if(username_exists($username)){
-        $errors[] = "Your Username already exists";
-    }
-    if(email_exists($email)){
-        $errors[] = "Your email already exists";
-    }
+        if (username_exists($username)) {
+            $errors[] = "Your Username already exists";
+        }
+        if (email_exists($email)) {
+            $errors[] = "Your email already exists";
+        }
 
-    if($password !== $confirm_password){
-        $errors[] = "Your passwords fields do not match";
-    }
+        if ($password !== $confirm_password) {
+            $errors[] = "Your passwords fields do not match";
+        }
 
-    if(!empty($errors)){
-        foreach ($errors as $error){
-            echo validation_errors($error);
+        if (!empty($errors)) {
+            foreach ($errors as $error) {
+                echo validation_errors($error);
 
+            }
+        } else {
+            if (register_user($first_name, $last_name, $username, $email, $password)) {
+                set_message("<p class='bg-success text-center'>Please check your email for an activation link</p>");
+                redirect("index.php");
+
+            }else{
+                set_message("<p class='bg-danger text-center'>Sorry we could not register the user.</p>");
+                redirect("index.php");
+            }
         }
     }
 
+}
+/* **************************************Register user ***********************/
+function register_user($first_name, $last_name, $username, $email, $password){
+    $first_name = escape($first_name);
+    $last_name  = escape($last_name);
+    $username   = escape($username);
+    $email      = escape($email);
+    $password   = escape($password);
+
+    if(email_exists($email)){
+        return false;
+    }elseif (username_exists($username)){
+        return false;
+    }else{
+        $password = md5($password);
+        $validation = md5($username + microtime());
+        $sql = "INSERT INTO  users (first_name, last_name,username,email,password,validation_code, active)";
+        $sql .= " VALUES ('$first_name','$last_name','$username','$email','$password','$validation','0') ";
+        //var_dump($sql);
+        $result = query($sql);
+
+        http://www.lemp.dev/activate.php?email=dobrien@gmail.com&code=2743173ce848f660d4dc03491c9833b8        $subject = "Activate account";
+        $msg = "Please click the link to activate your Account http://www.lamp.dev/login/activate.php?email=$email&code=$validation";
+
+        $header = "From: noreply@lamp.dev";
+
+        send_email($email, $subject,$msg,$header);
+        return true;
+    }
+}
+
+/* **************************************Activate user ***********************/
+
+function activate_user(){
+
+    if($_SERVER['REQUEST_METHOD'] == "GET"){
+        if(isset($_GET['email'])){
+            $email = clean($_GET['email']);
+            $validation_code = clean($_GET['code']);
+            $sql = "SELECT id FROM users WHERE email = '".escape($_GET['email'])."' AND validation_code ='".escape($_GET['code']). " ' ";
+            $result = query($sql);
+            confirm($result);
+            //$resultSet = fetch_array($result);
+            //$id = $resultSet['id'];
+            if(row_count($result)== 1){
+                $sql = "UPDATE users SET active = '1', validation_code = '0'  WHERE email ='".escape($email)."'";
+                //var_dump($sql);
+                $result2 = query($sql);
+                confirm($result2);
+                //echo "<p class='bg-success'>Your account has been activated.</p>";
+                set_message("<p class='bg-success'>Your account has been activated");
+                redirect("login.php");
+            }else{
+                set_message("<p class='bg-danger'>Your account could not be activated");
+                redirect("login.php");
+            }
+        }
+
+    }
 
 }
+
+
