@@ -170,7 +170,7 @@ function register_user($first_name, $last_name, $username, $email, $password){
         $msg = "Please click the link to activate your Account http://www.lamp.dev/login/activate.php?email=$email&code=$validation";
 
         $header = "From: noreply@lamp.dev";
-
+        $subject = "Put something in here";
         send_email($email, $subject,$msg,$header);
         return true;
     }
@@ -207,4 +207,78 @@ function activate_user(){
 
 }
 
+
+function validate_user_login(){
+    $errors = [];
+    $min = 3;
+    $max = 20;
+
+    if($_SERVER['REQUEST_METHOD'] == "POST") {
+
+        $email = clean($_POST['email']);
+        $password = clean($_POST['password']);
+
+        if(empty($email)){
+            $error[] = "Email field cannot be empty";
+
+        }
+        if(empty($password)){
+            $error[] = "Password field cannot be empty";
+
+        }
+        if (!empty($errors)) {
+            foreach ($errors as $error) {
+                echo validation_errors($error);
+
+            }
+        } else {
+            if(login_user($email,$password)){
+                redirect("admin.php");
+            }else{
+                echo validation_errors("Your credentials are not correct");
+            }
+
+        }
+
+    }
+
+}
+
+/**
+ * @param $email
+ * @param $password
+ * @return bool
+ */
+function login_user($email, $password){
+
+    $sql = "SELECT id, password FROM users WHERE email = '" . escape($email) . "' AND active = 1";
+    //var_dump($sql);
+    //die();
+    $result = query($sql);
+    if(row_count($result) == 1){
+        $row = fetch_array($result);
+        $db_password = $row['password'];
+        if(md5($password === $db_password)){
+            $_SESSION['email'] = $email;
+            return true;
+        } else {
+            return false;
+        }
+
+    } else {
+        return false;
+    }
+
+}
+
+/**
+ * @return bool
+ */
+function logged_in(){
+
+    if(isset($_SESSION['email'])){
+        return true;
+    } else {return false; }
+
+}
 
