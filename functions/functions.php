@@ -30,7 +30,7 @@ function display_message(){
 }
 
 function token_generator(){
-    $token = $_SESSION['token'] = md5(uniqueid(mt_rand(), true));
+    $token =  $_SESSION['token'] = md5(uniqid(mt_rand(), true));
     return $token;
 }
 
@@ -287,3 +287,74 @@ function logged_in(){
 
 }
 
+
+//recover password
+function recover_password()
+{
+    if ($_SERVER['REQUEST_METHOD'] == "POST") {
+        if (isset($_SESSION['token']) && $_POST['token'] === $_SESSION['token']) {
+            $email = clean($_POST['email']);
+            if (email_exists($email)) {
+                $validation_code = md5($email + microtime());
+                setcookie('temp_access_code', $validation_code, time() + 60*30);
+
+                $sql = "UPDATE users SET validation_code = '" . escape($validation_code) . "' WHERE email ='" . escape($email) . "'";
+                $result = query($sql);
+                confirm($result);
+                $subject = "Please reset your password";
+                $message = " Here is your password reset code {$validation_code}
+            
+            Click here to reset your password http://www.lemp.dev/code.php?email=$email&code=$validation_code
+            
+            ";
+                $headers = "From: noreply@lemp.dev";
+
+                if (!send_email($email, $subject, $message, $headers)) {
+
+                    echo validation_errors("Email cannot be sent");
+                }
+                set_message("<p class='bg-success text-center'>Please check your email for a password reset. </p>");
+                redirect("index.php");
+
+            }
+        } else {
+            redirect("index.php");
+        }
+    }
+}
+
+
+/******************* Code Validation function ************************/
+function validate_code(){
+
+    if(isset($_COOKIE['temp_access_code'])) {
+        if (!isset($_GET['email']) && !isset($_GET['code'])) {
+            redirect("index.php");
+        } else if (empty(($_GET['email'])) || empty($_GET['code'])) {
+            redirect("index.php");
+        } else {
+            if (isset($_POST['code'])) {
+                $email = clean($_GET['email']);
+
+                $validation_code = clean($_POST['code']);
+                $sql = "SELECT id FROM users WHERE validation_code = '" . escape($validation_code) . "'AND email ='" . escape($email) . "'";
+                $result = query($sql);
+                confirm($result);
+                if (row_count($result) == 1) {
+                    redirect("reset.php");
+                } else {
+                    echo validation_errors("Sorry wrong validation code");
+
+                }
+                echo "getting post from form";
+
+            }
+        }
+    }
+    else {
+        set_message("<p class='bg-success text-center'>Sorry your validation cookie has expired. </p>");
+        redirect("recover.php");
+
+    }
+
+}
