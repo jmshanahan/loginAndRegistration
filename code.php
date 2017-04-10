@@ -5,6 +5,7 @@
 		<div class="col-lg-6 col-lg-offset-3">	
 		
 			<div class="alert alert-success alert-dismissible" role="alert">
+                <?php display_message();?>
 				<?php validate_code(); ?>
 			</div>					
 		</div>

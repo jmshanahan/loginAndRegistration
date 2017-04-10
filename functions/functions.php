@@ -55,6 +55,7 @@ function email_exists($email){
         return false;
     }
 }
+
 function username_exists($username){
     $sql = "SELECT id FROM users WHERE username = '$username'";
     $result = query($sql);
@@ -74,6 +75,7 @@ function username_exists($username){
 function send_email($email, $subject, $msg, $headers){
     return mail($email, $subject, $msg, $headers);
 }
+
 
 
 
@@ -146,6 +148,7 @@ function validate_user_registration(){
     }
 
 }
+
 /* **************************************Register user ***********************/
 function register_user($first_name, $last_name, $username, $email, $password){
     $first_name = escape($first_name);
@@ -206,6 +209,7 @@ function activate_user(){
     }
 
 }
+
 
 
 function validate_user_login(){
@@ -276,6 +280,7 @@ function login_user($email, $password, $remember){
 
 }
 
+
 /**
  * @return bool
  */
@@ -320,6 +325,9 @@ function recover_password()
         } else {
             redirect("index.php");
         }
+        if(isset($_POST['cancel-submit'])){
+            redirect("login.php");
+        }
     }
 }
 
@@ -327,12 +335,13 @@ function recover_password()
 /******************* Code Validation function ************************/
 function validate_code(){
 
-    if(isset($_COOKIE['temp_access_code'])) {
+    if (isset($_COOKIE['temp_access_code'])) {
         if (!isset($_GET['email']) && !isset($_GET['code'])) {
             redirect("index.php");
         } else if (empty(($_GET['email'])) || empty($_GET['code'])) {
             redirect("index.php");
-        } else {
+        }
+        else {
             if (isset($_POST['code'])) {
                 $email = clean($_GET['email']);
 
@@ -341,20 +350,49 @@ function validate_code(){
                 $result = query($sql);
                 confirm($result);
                 if (row_count($result) == 1) {
-                    redirect("reset.php");
+                    setcookie('temp_access_code', $validation_code, time() + 60 * 30);
+
+                    redirect("reset.php?email=$email&code=$validation_code");
                 } else {
                     echo validation_errors("Sorry wrong validation code");
 
                 }
-                echo "getting post from form";
-
             }
         }
     }
-    else {
+   else {
         set_message("<p class='bg-success text-center'>Sorry your validation cookie has expired. </p>");
         redirect("recover.php");
 
     }
-
 }
+
+
+
+/***************************  Password reset function ********************/
+function password_reset(){
+
+    if (isset($_COOKIE['temp_access_code'])) {
+
+
+        if(isset($_GET['email']) && isset($_GET['code'])) {
+            if (isset($_SESSION['token']) && isset($_POST['token']) && $_POST['token'] === $_SESSION['token']) {
+
+                    if($_POST['password'] === $_POST['confirm_password']) {
+                        $updated_password = md5($_POST['password']);
+                        $sql = "UPDATE users SET password = '" . escape($updated_password) . "', validation_code = 0 WHERE email = '" . escape($_GET['email']) ."'";
+                        query($sql);
+                        set_message("<p class='bg-danger text-center'>Sorry your time has expired. </p>");
+                        redirect("login.php");
+                        //confirm()
+                    }
+            }
+        }
+    } else {
+        set_message("<p class='bg-danger text-center'>Your password has been updated, please login. </p>");
+        redirect("recover.php");
+    }
+}
+
+
+
